@@ -1,0 +1,219 @@
+<template>
+  <div v-if="!showResult">
+    <h3>请答题</h3>
+
+    <div class="container">
+      <div class="itemWrapper" :style="transformX">
+        <div class="item" v-for="(item, iIndex) in data" :key="item.id">
+          <div class="title">第{{iIndex + 1}}题：{{item.question}}</div>
+          <ul>
+            <li
+              v-for="(option, oIndex) in item.options"
+              :key="option"
+              :data-index="oIndex"
+              :class="oIndex === answers[iIndex] ? 'active' : ''"
+              v-on:click="changeAnswer"
+            >
+              {{option}}
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div>
+        <button v-if="currentQues > 0" v-on:click="prev">上一题</button>
+        <button v-if="currentQues < maxQues - 1" v-on:click="next">下一题</button>
+        <button v-if="currentQues === maxQues - 1" @click="getResult">得分</button>
+      </div>
+    </div>
+  </div>
+  <div v-else>
+    恭喜你本次答对{{sumRight}}题，获得{{sumScore}}分！
+  </div>
+</template>
+
+<script>
+import axios from 'axios';
+
+export default {
+  data() {
+    return (
+      {
+        data: [
+          {
+            id: 1,
+            question: '荷兰的风车主要用于?',
+            options: ['排水', '发电', '观光'],
+            answer: 0,
+          },
+          {
+            id: 2,
+            question: '被称为“万园之园”的是指?',
+            options: ['苏州园林', '圆明园', '乔家大院'],
+            answer: 1,
+          },
+          {
+            id: 3,
+            question: '电脑的中央处理器英文简写?',
+            options: ['ABU', 'CPU', 'GPU'],
+            answer: 1,
+          },
+          {
+            id: 4,
+            question: '一次性筷子的发明者?',
+            options: ['日本人', '美国', '中国人'],
+            answer: 0,
+          },
+          {
+            id: 5,
+            question: '“匈奴未灭，何以家为”是谁的豪言?',
+            options: ['岳飞', '卫青', '霍去病'],
+            answer: 2,
+          }
+        ],
+        currentQues: 0,
+        answers: [],
+        showResult: false,
+        sumRight: 0,
+        sumScore: 0,
+      }
+    );
+  },
+  computed: {
+    transformX: function() {
+      console.log('this.currentQues', this.currentQues)
+      const _translateX = this.currentQues > -1 ? `-${this.currentQues * 100}%` : 0;
+      console.log(`transform: translateX(${_translateX})`);
+      return `transform:translateX(${_translateX})`;
+    },
+    maxQues() {
+      return this.data.length;
+    }
+  },
+  methods: {
+    async getToken() {
+      const res = await axios.get('/api/getToken');
+      return res.data.data;
+    },
+    changeAnswer(e) {
+      console.log(e, 'e')
+      const { index } = e.target.dataset;
+      console.log(index, 'index');
+      const newAnswers = JSON.parse(JSON.stringify(this.answers));
+      newAnswers[this.currentQues] = Number(index);
+      this.answers = newAnswers;
+      console.log(this.answers, 'this.answers')
+      // this.currentAnswer = `${this.currentQues}-${index}`;
+    },
+    next() {
+      this.step(1);
+    },
+    prev() {
+      this.step(-1);
+    },
+    step(gap) {
+      this.currentQues += gap;
+    },
+    getResult() {
+      const perQues = 20;
+      const results = [];
+      let sumRight = 0;
+
+      this.answers.forEach((a, index) => {
+        const answer = this.data[index].answer;
+        const isRight = a === answer;
+        if (isRight) sumRight +=1;
+        results.push({
+          isRight: a === answer,
+          userAnswer: a,
+          answer,
+        });
+      });
+      this.sumRight = sumRight;
+      this.sumScore = sumRight * perQues;
+      this.showResult = true;
+      // return { sumRight, results }
+    },
+
+    async auth() {
+      window.location.href = '/wxAuthorize';
+    },
+
+    async getUser() {
+      const qs = Qs.parse(window.location.search.substr(1));
+      const openid = qs.openid;
+      const res = await axios.get('/getUser', {
+        params: {
+          openid,
+        }
+      })
+      console.log('User', res.data);
+    },
+
+    async getJSConfig() {
+      console.log('wx', wx);
+      const res = await axios.get('/getJSConfig', {
+        params: window.location.href,
+      });
+      console.log(res,'res data');
+      res.data.jsApiList = [];
+      wx.config(res.data);
+      wx.ready(function() {
+        console.log('wx ready ....');
+      });
+      // 获取网络地址
+      wx.getNetworkType({
+        success: function(res) {
+          // 返回网络类型
+          const networkType = res.networkType
+          console.log('getNetWorkType', networkType);
+        }
+      })
+
+      wx.updateAppMessageShareData({ 
+        title: '', // 分享标题
+        desc: '', // 分享描述
+        link: '', // 分享链接，该链接域名或路径必须与当前页面对应的公众号JS安全域名一致
+        imgUrl: '', // 分享图标
+        success: function () {
+          // 设置成功
+        }
+      });
+    }
+  },
+  created() {
+    const token = window.localStorage.getItem('accessToken');
+    if (!token) {
+      this.getToken();
+    }
+  },
+}
+</script>
+<style>
+  body {
+    margin: 0;
+  }
+
+  h3 {
+    color: red;
+  }
+
+  .container {
+    white-space: nowrap;
+  }
+
+  .itemWrapper {
+    transition: transform .3s ease-in-out;
+  }
+
+  .item {
+    display: inline-block;
+    width: 100%;
+
+  }
+
+  li.active {
+    color: red;
+  }
+
+</style>
+
