@@ -193,10 +193,11 @@ export default {
     async getJSConfig() {
       // console.log('wx', wx);
       const res = await axios.get(prefixUrl + '/getJSConfig', {
-        params: encodeURIComponent(window.location.href.split('#')[0]),
+        // params: encodeURIComponent(window.location.href.split('#')[0]),
         // params: {
         //   url: prefixUrl + '/getJSConfig',
         // }
+        params: window.location.href,
       });
       console.log(res,'res data');
       // res.data.jsApiList = [];
@@ -208,7 +209,10 @@ export default {
       res.data.debug = false;
 
       wx.config(res.data);
-      this.setShare();
+      wx.ready(function() {
+        console.log('wx.ready ....');
+        this.setShare();
+      });
     },
     setShare() {
       const url = `${window.location.origin}?score=${this.score}&nickname=${this.user.nickname}`;
@@ -216,9 +220,14 @@ export default {
         title: `我的成绩是${this.score},你不来试试`,
         link: url,
         imgUrl: this.user.headimgurl,
+        success: function() {
+          console.log('设置成功');
+        }
       };
-      window.wx.onMenuShareTimeline(shareConfig);
-      window.wx.onMenuShareAppMessage(shareConfig);
+      window.wx.updateAppMessageShareData(shareConfig);
+      window.wx.updateTimelineShareData(shareConfig);
+      // window.wx.onMenuShareTimeline(shareConfig);
+      // window.wx.onMenuShareAppMessage(shareConfig);
     }
   }
 }
